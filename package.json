@@ -1,6 +1,6 @@
 {
-  "name": "react-globe",
-  "version": "3.1.1",
+  "name": "react-globe-lite",
+  "version": "1.0.0",
   "description": "Create beautiful and interactive React + ThreeJS globe visualizations with ease.",
   "main": "dist/index.js",
   "module": "dist/index.module.js",
@@ -19,18 +19,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/chrisrzhou/react-globe.git"
+    "url": "https://github.com/shuding/react-globe.git"
   },
-  "bugs": {
-    "url": "https://github.com/chrisrzhou/react-globe/issues"
-  },
-  "homepage": "https://react-globe.netlify.com/",
   "scripts": {
     "build": "rollup -c",
-    "build:docs": "yarn docz build",
-    "clean": "rm -rf dist .docz",
-    "dev": "yarn docz dev",
-    "lint": "yarn tsc && eslint --ext .js,.jsx,.ts,.tsx --fix src docs",
+    "clean": "rm -rf dist",
+    "lint": "yarn tsc && eslint --ext .js,.jsx,.ts,.tsx --fix src",
     "prepare": "yarn clean && yarn build",
     "size": "bundlesize"
   },
@@ -44,8 +38,7 @@
     "resize-observer-polyfill": "^1.5.1",
     "three-glow-mesh": "^0.1.0",
     "three-orbitcontrols": "^2.102.1",
-    "three.interaction": "^0.2.2",
-    "tippy.js": "^4.3.4"
+    "three.interaction": "^0.2.2"
   },
   "devDependencies": {
     "@babel/core": "^7.4.5",
