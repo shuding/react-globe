@@ -12,16 +12,18 @@ export default function useRenderer<T>(
   // init
   useEffect(() => {
     rendererRef.current = new WebGLRenderer({
-      alpha: true,
-      antialias: true,
-      canvas: canvasRef.current,
+      alpha: false,
+      antialias: false,
+      stencil: false,
+      canvas: canvasRef.current
     });
+    rendererRef.current.setClearColor(0xffffff);
   }, []);
 
   // update size
   useEffect(() => {
     rendererRef.current.setSize(...size);
-  }, [size]);
+  }, size);
 
   return [rendererRef, canvasRef];
 }

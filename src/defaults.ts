@@ -18,7 +18,6 @@ export const CAMERA_DAMPING_FACTOR = 0.1;
 export const CAMERA_MAX_POLAR_ANGLE = Math.PI;
 export const CAMERA_MIN_POLAR_ANGLE = 0;
 export const CAMERA_MIN_DISTANCE_RADIUS_SCALE = 1.1;
-export const CLOUDS_RADIUS_OFFSET = 1;
 export const GLOBE_SEGMENTS = 50;
 export const MARKER_DEFAULT_COLOR = 'gold';
 export const MARKER_SEGMENTS = 10;
@@ -52,12 +51,7 @@ export const defaultFocusOptions: FocusOptions = {
 export const defaultGlobeOptions: GlobeOptions = {
   backgroundTexture:
     'https://raw.githubusercontent.com/chrisrzhou/react-globe/master/textures/background.png',
-  cloudsSpeed: 0.5,
-  cloudsOpacity: 0.3,
-  cloudsTexture:
-    'https://raw.githubusercontent.com/chrisrzhou/react-globe/master/textures/clouds.png',
   enableBackground: true,
-  enableClouds: true,
   enableGlow: true,
   glowCoefficient: 0.1,
   glowColor: '#d1d1d1',

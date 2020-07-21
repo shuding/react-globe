@@ -2,11 +2,9 @@ import { max, min } from 'd3-array';
 import { scaleLinear } from 'd3-scale';
 import { useEffect, useRef } from 'react';
 import {
-  BoxGeometry,
   Group,
   Mesh,
   MeshBasicMaterial,
-  MeshLambertMaterial,
   SphereGeometry,
   Vector3,
 } from 'three';
@@ -20,16 +18,13 @@ import {
 } from '../defaults';
 import {
   InteractableObject3D,
-  InteractionEvent,
   Marker,
   MarkerCallback,
   MarkerOptions,
-  MarkerType,
 } from '../types';
-import { coordinatesToPosition, tween } from '../utils';
+import { coordinatesToPosition } from '../utils';
 
 interface Handlers {
-  onClick: MarkerCallback;
   onMouseOver: MarkerCallback;
 }
 
@@ -44,9 +39,8 @@ export default function useMarkers<T>(
     offsetRadiusScale,
     radiusScaleRange,
     renderer,
-    type,
   }: MarkerOptions,
-  { onClick, onMouseOver }: Handlers,
+  { onMouseOver }: Handlers,
 ): React.RefObject<THREE.Group> {
   const markersRef = useRef<THREE.Group>(new Group());
   const unitRadius = RADIUS * MARKER_UNIT_RADIUS_SCALE;
@@ -72,46 +66,28 @@ export default function useMarkers<T>(
       if (shouldUseCustomMarker) {
         markerObject = renderer(marker);
       } else {
-        let from = { size: 0 };
-        const to = { size };
         const mesh = new Mesh();
-        tween(from, to, animationDuration, ['Linear', 'None'], () => {
-          switch (type) {
-            case MarkerType.Bar:
-              mesh.geometry = new BoxGeometry(
-                unitRadius,
-                unitRadius,
-                from.size,
-              );
-              mesh.material = new MeshLambertMaterial({
-                color,
-              });
-              break;
-            case MarkerType.Dot:
-            default:
-              mesh.geometry = new SphereGeometry(
-                from.size,
-                MARKER_SEGMENTS,
-                MARKER_SEGMENTS,
-              );
-              mesh.material = new MeshBasicMaterial({ color });
-              if (enableGlow) {
-                // add glow
-                const glowMesh = createGlowMesh(
-                  mesh.geometry.clone() as THREE.Geometry,
-                  {
-                    backside: false,
-                    color,
-                    coefficient: glowCoefficient,
-                    power: glowPower,
-                    size: from.size * glowRadiusScale,
-                  },
-                );
-                mesh.children = [];
-                mesh.add(glowMesh);
-              }
-          }
-        });
+        mesh.geometry = new SphereGeometry(
+          size,
+          MARKER_SEGMENTS,
+          MARKER_SEGMENTS,
+        );
+        mesh.material = new MeshBasicMaterial({ color });
+        if (enableGlow) {
+          // add glow
+          const glowMesh = createGlowMesh(
+            mesh.geometry.clone() as THREE.Geometry,
+            {
+              backside: false,
+              color,
+              coefficient: glowCoefficient,
+              power: glowPower,
+              size: size * glowRadiusScale,
+            },
+          );
+          mesh.children = [];
+          mesh.add(glowMesh);
+        }
         markerObject = mesh;
       }
 
@@ -120,11 +96,7 @@ export default function useMarkers<T>(
       if (offsetRadiusScale !== undefined) {
         heightOffset = RADIUS * offsetRadiusScale;
       } else {
-        if (type === MarkerType.Dot) {
-          heightOffset = (size * (1 + glowRadiusScale)) / 2;
-        } else {
-          heightOffset = 0;
-        }
+        heightOffset = (size * (1 + glowRadiusScale)) / 2;
       }
       const position = coordinatesToPosition(
         coordinates,
@@ -134,15 +106,9 @@ export default function useMarkers<T>(
       markerObject.lookAt(new Vector3(0, 0, 0));
 
       // handle events
-      function handleClick(event: InteractionEvent) {
-        event.stopPropagation();
-        onClick(marker, markerObject, event.data.originalEvent);
-      }
-      markerObject.on('click', handleClick);
-      markerObject.on('touchstart', handleClick);
       markerObject.on('mousemove', event => {
         event.stopPropagation();
-        onMouseOver(marker, markerObject, event.data.originalEvent);
+        onMouseOver(marker, markerObject);
       });
       markersRef.current.add(markerObject);
     });
@@ -154,11 +120,9 @@ export default function useMarkers<T>(
     glowRadiusScale,
     markers,
     offsetRadiusScale,
-    onClick,
     onMouseOver,
     radiusScaleRange,
     renderer,
-    type,
     unitRadius,
   ]);
 

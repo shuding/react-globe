@@ -10,18 +10,14 @@ import {
   defaultGlobeOptions,
   defaultLightOptions,
   defaultMarkerOptions,
-  MARKER_ACTIVE_ANIMATION_DURATION,
-  MARKER_ACTIVE_ANIMATION_EASING_FUNCTION,
 } from './defaults';
 import {
   useCamera,
   useGlobe,
   useMarkers,
   useRenderer,
-  useResize,
 } from './hooks';
 import reducer, { ActionType } from './reducer';
-import Tooltip from './Tooltip';
 import * as types from './types';
 import { tween } from './utils';
 
@@ -43,15 +39,13 @@ export type Position = types.Position;
 export type Size = types.Size;
 
 export interface Props {
-  /** An array of animation steps to power globe animations. */
-  animations?: Animation[];
   /** Configure camera options (e.g. rotation, zoom, angles). */
   cameraOptions?: CameraOptions;
   /** A set of [lat, lon] coordinates to be focused on. */
   focus?: Coordinates;
   /** Configure focusing options (e.g. animation duration, distance, easing function). */
   focusOptions?: FocusOptions;
-  /** Configure globe options (e.g. textures, background, clouds, glow). */
+  /** Configure globe options (e.g. textures, glow). */
   globeOptions?: GlobeOptions;
   /** Configure light options (e.g. ambient and point light colors + intensity). */
   lightOptions?: LightOptions;
@@ -59,16 +53,8 @@ export interface Props {
   lookAt?: Coordinates;
   /** An array of data that will render interactive markers on the globe. */
   markers?: Marker[];
-  /** Configure marker options (e.g. tooltips, size, marker types, custom marker renderer). */
+  /** Configure marker options (e.g. size, marker types, custom marker renderer). */
   markerOptions?: MarkerOptions;
-  /** Callback to handle click events of a marker.  Captures the clicked marker, ThreeJS object and pointer event. */
-  onClickMarker?: MarkerCallback;
-  /** Callback to handle defocus events (i.e. clicking the globe after a focus has been applied).  Captures the previously focused coordinates and pointer event. */
-  onDefocus?: (previousFocus: Coordinates, event?: PointerEvent) => void;
-  /** Callback to handle mouseout events of a marker.  Captures the previously hovered marker, ThreeJS object and pointer event. */
-  onMouseOutMarker?: MarkerCallback;
-  /** Callback to handle mouseover events of a marker.  Captures the hovered marker, ThreeJS object and pointer event. */
-  onMouseOverMarker?: MarkerCallback;
   /** Callback when texture is successfully loaded */
   onTextureLoaded?: () => void;
   /** Set explicit [width, height] values for the canvas container.  This will disable responsive resizing. */
@@ -76,19 +62,13 @@ export interface Props {
 }
 
 function ReactGlobe({
-  animations,
   cameraOptions,
-  focus: initialFocus,
-  focusOptions: initialFocusOptions,
+  focus,
   globeOptions,
   lightOptions,
   lookAt,
   markers,
   markerOptions,
-  onClickMarker,
-  onDefocus,
-  onMouseOutMarker,
-  onMouseOverMarker,
   onTextureLoaded,
   size: initialSize,
 }: Props) {
@@ -96,59 +76,36 @@ function ReactGlobe({
   const mergedGlobeOptions = { ...defaultGlobeOptions, ...globeOptions };
   const mergedCameraOptions = { ...defaultCameraOptions, ...cameraOptions };
   const mergedLightOptions = { ...defaultLightOptions, ...lightOptions };
-  const mergedFocusOptions = { ...defaultFocusOptions, ...initialFocusOptions };
   const mergedMarkerOptions = { ...defaultMarkerOptions, ...markerOptions };
 
-  const [state, dispatch] = useReducer(reducer, {
-    focus: initialFocus,
-    focusOptions: mergedFocusOptions,
-  });
-  const { activeMarker, activeMarkerObject, focus, focusOptions } = state;
-  const { enableDefocus } = focusOptions;
-  const { activeScale, enableTooltip, getTooltipContent } = mergedMarkerOptions;
+  const [state, dispatch] = useReducer(reducer, {});
+  const { activeMarker, activeMarkerObject } = state;
+  const { activeScale } = mergedMarkerOptions;
+  const previousActiveMarkerObject = useRef<any>();
+
+  // animate the marker on mouse move
+  useEffect(() => {
+    if (previousActiveMarkerObject.current) {
+      const object = previousActiveMarkerObject.current;
+      const from: Position= [activeScale, activeScale, activeScale];
+      tween(from, [1, 1, 1], 200, ['Cubic', 'InOut'], () => {
+        object.scale.set(...from);
+      });
+      previousActiveMarkerObject.current = undefined;
+    }
+    if (activeMarkerObject) {
+      const object = activeMarkerObject;
+      const from: Position= [1, 1, 1];
+      tween(from, [activeScale, activeScale, activeScale], 200, ['Cubic', 'InOut'], () => {
+        object.scale.set(...from);
+      });
+      previousActiveMarkerObject.current = activeMarkerObject;
+    }
+  }, [activeMarkerObject]);
 
   // cache event handlers
-  const handleClickMarker = useEventCallback(
-    (marker: Marker, markerObject: THREE.Object3D, event: PointerEvent) => {
-      dispatch({
-        type: ActionType.SetFocus,
-        payload: {
-          focus: marker.coordinates,
-        },
-      });
-      onClickMarker && onClickMarker(marker, markerObject, event);
-    },
-  );
-  const handleMouseOutMarker = useEventCallback(
-    (marker: Marker, markerObject: THREE.Object3D, event: PointerEvent) => {
-      dispatch({
-        type: ActionType.SetActiveMarker,
-        payload: {
-          activeMarker: undefined,
-          activeMarkerObject: undefined,
-        },
-      });
-      const from: [number, number, number] = [
-        activeScale,
-        activeScale,
-        activeScale,
-      ];
-      tween(
-        from,
-        [1, 1, 1],
-        MARKER_ACTIVE_ANIMATION_DURATION,
-        MARKER_ACTIVE_ANIMATION_EASING_FUNCTION,
-        () => {
-          if (activeMarkerObject) {
-            activeMarkerObject.scale.set(...from);
-          }
-        },
-      );
-      onMouseOutMarker && onMouseOutMarker(marker, activeMarkerObject, event);
-    },
-  );
   const handleMouseOverMarker = useEventCallback(
-    (marker: Marker, markerObject: THREE.Object3D, event: PointerEvent) => {
+    (marker: Marker, markerObject: THREE.Object3D) => {
       dispatch({
         type: ActionType.SetActiveMarker,
         payload: {
@@ -156,114 +113,27 @@ function ReactGlobe({
           markerObject,
         },
       });
-      const from = markerObject.scale.toArray() as [number, number, number];
-      tween(
-        from,
-        [activeScale, activeScale, activeScale],
-        MARKER_ACTIVE_ANIMATION_DURATION,
-        MARKER_ACTIVE_ANIMATION_EASING_FUNCTION,
-        () => {
-          if (markerObject) {
-            markerObject.scale.set(...from);
-          }
-        },
-      );
-      onMouseOverMarker && onMouseOverMarker(marker, markerObject, event);
     },
   );
-  const handleDefocus = useEventCallback((event: PointerEvent) => {
-    if (focus && enableDefocus) {
-      dispatch({
-        type: ActionType.SetFocus,
-        payload: {
-          focus: undefined,
-        },
-      });
-      onDefocus && onDefocus(focus, event);
-    }
-  });
 
   // initialize THREE instances
-  const [mountRef, size] = useResize(initialSize);
-  const [rendererRef, canvasRef] = useRenderer(size);
+  const [rendererRef, canvasRef] = useRenderer(initialSize);
   const globeRef = useGlobe(mergedGlobeOptions, onTextureLoaded);
   const [cameraRef, orbitControlsRef] = useCamera(
     mergedCameraOptions,
     mergedLightOptions,
-    focusOptions,
+    defaultFocusOptions,
     rendererRef,
-    size,
+    initialSize,
     lookAt,
     focus,
   );
   const markersRef = useMarkers(markers, mergedMarkerOptions, {
-    onClick: handleClickMarker,
     onMouseOver: handleMouseOverMarker,
   });
-  const mouseRef = useRef<{ x: number; y: number }>();
-
-  // track mouse position
-  useEffect(() => {
-    function onMouseUpdate(e: MouseEvent) {
-      mouseRef.current = { x: e.clientX, y: e.clientY };
-    }
-    document.addEventListener('mousemove', onMouseUpdate, false);
-    return () => {
-      document.removeEventListener('mousemove', onMouseUpdate, false);
-    };
-  }, []);
-
-  // update state from props
-  useEffect(() => {
-    dispatch({
-      type: ActionType.SetFocus,
-      payload: {
-        focus: initialFocus,
-        focusOptions: {
-          ...defaultFocusOptions,
-          ...initialFocusOptions,
-        },
-      },
-    });
-  }, [initialFocus, initialFocusOptions]);
-
-  // handle animations
-  useEffect(() => {
-    let wait = 0;
-    const timeouts: NodeJS.Timeout[] = [];
-    animations.forEach(animation => {
-      const {
-        animationDuration,
-        coordinates,
-        distanceRadiusScale,
-        easingFunction,
-      } = animation;
-      const timeout: NodeJS.Timeout = setTimeout(() => {
-        dispatch({
-          type: ActionType.Animate,
-          payload: {
-            focus: coordinates,
-            focusOptions: {
-              animationDuration,
-              distanceRadiusScale,
-              easingFunction,
-            },
-          },
-        });
-      }, wait);
-      timeouts.push(timeout);
-      wait += animationDuration;
-    });
-    return () => {
-      timeouts.forEach(timeout => {
-        clearTimeout(timeout);
-      });
-    };
-  }, [animations]);
 
   // handle scene and rendering loop
   useEffect(() => {
-    const mount = mountRef.current;
     const renderer = rendererRef.current;
     const globe = globeRef.current;
     const camera = cameraRef.current;
@@ -274,24 +144,21 @@ function ReactGlobe({
     globe.add(markersRef.current);
     scene.add(camera);
     scene.add(globe);
-    mount.appendChild(renderer.domElement);
 
     // initialize interaction events
     new Interaction(renderer, scene, camera);
     scene.on('mousemove', event => {
-      if (activeMarker) {
-        handleMouseOutMarker(
-          activeMarker,
-          activeMarkerObject,
-          event.data.originalEvent,
-        );
+      event.stopPropagation();
+      if (previousActiveMarkerObject.current) {
+        dispatch({
+          type: ActionType.SetActiveMarker,
+          payload: {
+            activeMarker: undefined,
+            activeMarkerObject: undefined,
+          },
+        });
       }
     });
-    if (enableDefocus && focus) {
-      scene.on('click', event => {
-        handleDefocus(event.data.originalEvent);
-      });
-    }
 
     function animate() {
       renderer.render(scene, cameraRef.current);
@@ -306,34 +173,12 @@ function ReactGlobe({
       if (animationFrameID) {
         cancelAnimationFrame(animationFrameID);
       }
-      mount.removeChild(renderer.domElement);
     };
-  }, [
-    activeMarker,
-    activeMarkerObject,
-    cameraRef,
-    enableDefocus,
-    focus,
-    globeRef,
-    handleDefocus,
-    handleMouseOutMarker,
-    markersRef,
-    mountRef,
-    orbitControlsRef,
-    rendererRef,
-  ]);
+  }, []);
 
   return (
-    <div ref={mountRef} style={{ height: '100%', width: '100%' }}>
+    <div style={{ height: '100%', width: '100%' }}>
       <canvas ref={canvasRef} style={{ display: 'block' }} />
-      {enableTooltip && activeMarker && (
-        <Tooltip
-          offset={10}
-          x={mouseRef.current.x}
-          y={mouseRef.current.y}
-          content={getTooltipContent(activeMarker)}
-        />
-      )}
     </div>
   );
 }

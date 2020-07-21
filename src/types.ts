@@ -147,16 +147,8 @@ export interface FocusOptions {
 export interface GlobeOptions {
   /** Background texture.  Accepts a URL or image data. */
   backgroundTexture: string;
-  /** Opacity of clouds with values from 0 to 1. */
-  cloudsOpacity: number;
-  /** Speed of clouds. */
-  cloudsSpeed: number;
-  /** Cloud texture.  Accepts a URL or image data. */
-  cloudsTexture: string;
   /** Enable background.  If disabled, the canvas will be transparent, allowing use of custom div backgrounds. */
   enableBackground: boolean;
-  /** Enable clouds. */
-  enableClouds: boolean;
   /** Enable glow effect of the globe. */
   enableGlow: boolean;
   /** Glow coefficient (see http://stemkoski.github.io/Three.js/Shader-Glow.html). */
